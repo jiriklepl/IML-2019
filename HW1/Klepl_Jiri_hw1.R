@@ -20,11 +20,11 @@ print(paste('Entropy: ', as.numeric(entropy)))
 print('', quote = FALSE)
 
 
-movies <- table(examples[, c(1)])
 
 print('Printing to pdf...')
 pdf('boxplot.pdf')
 
+movies <- table(examples[, c(1)])
 ratings <- examples[sapply(examples[1], function(x) x %in% names(movies[movies == 67])), ][, c(1, 3, 9)]
 boxplot(rating~movie, ratings, names = unique(ratings$title), las = 2)
 points(sapply(names(movies[movies == 67]), function(m) mean(examples[examples[1] == m, ][, c(3)])), pch = 19, col = 'red')
