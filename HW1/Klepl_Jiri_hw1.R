@@ -48,7 +48,7 @@ users$FOUR  <- sapply(users[,1], make_user_feature(4))
 users$FIVE  <- sapply(users[,1], make_user_feature(5))
 
 rownames(users) = users$user
-clustered_users <- hclust(dist(users[,c(2,6:10)]), method = "average")
+clustered_users <- hclust(dist(users[, c(2,6:10)]), method = "average")
 twenty_clusters <- cutree(clustered_users, 20)
 
 print('Number of users in each cluster:')
@@ -67,7 +67,7 @@ print('Existence of duplicates in each cluster:')
 print(sapply(1:20, function(c) {
     cusers <- users[sapply(
         users[1],
-        function(u) u %in% names(twenty_clusters[twenty_clusters == c]))]
+        function(u) u %in% names(twenty_clusters[twenty_clusters == c])), ][, c(2,6:10)]
     return(length(cusers) != length(unique(cusers)))
 }))
 print('', quote = FALSE)
