@@ -1,4 +1,6 @@
 library('ISLR')
+library('rpart')
+library('rpart.plot')
 
 # 1.1
 
@@ -12,14 +14,14 @@ print(summary(model))
 sorted <- Auto[order(Auto$acceleration), ]
 attach(sorted)
 
-print('Printing to pdf...')
+message('Printing to pdf...')
 pdf('mpg_vs_acceleration.pdf')
 
 plot(acceleration, mpg, main="ISLR: Auto data set (1.2)", 
 	xlab = "Weight",
 	ylab = "Miles Per Gallon",
 	pch = 19,
-	col = "red")
+	col = "black")
 
 cols <- c("blue", "orange", "red", "green", "pink")
 
@@ -115,7 +117,7 @@ test_with_treshold <- function(treshold) {
     message(paste("Testing specificity (2.4b):", cm[1,1]/sum(cm[,1])))
 
     #2.5a
-    if(treshold != 0.5) {
+    if (treshold != 0.5) {
         precision <- cm[2,2]/sum(cm[2,])
         recall <- cm[2,2]/sum(cm[,2])
 
@@ -129,10 +131,40 @@ test_with_treshold <- function(treshold) {
 
 
 # 2.4b
-message("2.4 results:")
+message("2.4c results:")
 test_with_treshold(0.5)
 
 # 2.5a
 message("2.5 results:")
 test_with_treshold(0.1)
 test_with_treshold(0.9)
+
+
+# 2.4c
+print(summary(glm(mpg01 ~ . -name, data = training, family = binomial)))
+
+# 2.6
+
+
+message('Printing to pdf...')
+pdf('tree_plot.pdf')
+
+test_with_cp <- function(cp) {
+    tmodel <- rpart(mpg01 ~ .-name, training, method = "class", cp = cp)
+    rpart.plot(tmodel, main = paste("cp =", cp))
+
+    message(paste("Training error rate (2.6a):", sum(ifelse(training$mpg01 != predict(tmodel, type = "class"), 1, 0)) / num.train))
+    message(paste("Testing error rate (2.6a):", sum(ifelse(testing$mpg01 != predict(tmodel, newdata = testing, type = "class"), 1, 0)) / num.test))
+    message("")
+}
+
+message("2.6b results:")
+
+for(i in 0:20) {
+    cp <- i * 0.05
+
+    message(paste("cp:", cp))
+    test_with_cp(cp)
+}
+
+dev.off()
