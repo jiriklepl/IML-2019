@@ -31,7 +31,7 @@ mostype <- data.frame(
     "Number" = as.numeric(mostype.numbers),
     "Rate" = as.numeric(mostype.purchased))
 
-row.names(mostype) <- row.names(mostype.numbers) 
+row.names(mostype) <- row.names(mostype.numbers)
 
 message("MOSTYPE:")
 print(mostype)
