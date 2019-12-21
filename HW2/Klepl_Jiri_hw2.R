@@ -113,13 +113,13 @@ test_with_treshold <- function(treshold) {
 
     # Printing results
     message(paste("Testing error rate (2.4b):", 1 - sum(diag(cm))/sum(cm)))
-    message(paste("Testing sensitivity (2.4b):", cm[2,2]/sum(cm[,2])))
-    message(paste("Testing specificity (2.4b):", cm[1,1]/sum(cm[,1])))
+    message(paste("Testing sensitivity (2.4b):", cm[2,2]/sum(cm[2,])))
+    message(paste("Testing specificity (2.4b):", cm[1,1]/sum(cm[1,])))
 
     #2.5a
     if (treshold != 0.5) {
-        precision <- cm[2,2]/sum(cm[2,])
-        recall <- cm[2,2]/sum(cm[,2])
+        precision <- cm[2,2]/sum(cm[,2])
+        recall <- cm[2,2]/sum(cm[2,])
 
         message(paste("Testing precision (2.5a):", precision))
         message(paste("Testing recall (2.5a):", recall))
