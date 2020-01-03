@@ -1,5 +1,10 @@
 library(ISLR)
 library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(ROCR)
+library(glmnet)
+library(plotrix)
 # str(Caravan)
 
 # Task 1
@@ -48,20 +53,18 @@ print(mostype.vs.moshoofd)
 
 set.seed(123)
 
-message("Let's fold:")
-do.folds <- function(folds, cp){
+do.folds <- function(folds, type, first, second) {
     Caravan.sample <- sample(nrow(Caravan))
 
-    Caravan.test <- Caravan[Caravan.sample[1:1000],]
-    Caravan.train <- Caravan[Caravan.sample[-c(1:1000)],]
+    Caravan.test <- Caravan[Caravan.sample,]
 
-    answered.yes <- Caravan.train[Caravan.train[,86] == "Yes",]
-    answered.no <- Caravan.train[Caravan.train[,86] == "No",]
+    answered.yes <- Caravan.test[Caravan.test[,86] == "Yes",]
+    answered.no <- Caravan.test[Caravan.test[,86] == "No",]
 
     yes.count <- floor(nrow(answered.yes)/folds)
     no.count <- floor(nrow(answered.no)/folds)
 
-    precision.sum <- 0
+    aucs <- c(1:10)
 
     for (i in 1:folds) {
         yes.test <- answered.yes[((i-1)*yes.count+1):(i*yes.count),]
@@ -73,18 +76,72 @@ do.folds <- function(folds, cp){
         train <- rbind(yes.rest, no.rest)
         test <- rbind(yes.test, no.test)
 
-        tmodel <- rpart(Purchase ~ ., train, method = "class", cp = cp)
+        if (type == "tree") {
+            model <- rpart(
+                formula = Purchase ~ .,
+                data    = train,
+                method  = "class",
+                cp      = first)
 
-        predicted <- predict(tmodel, newdata = test, type = "class")
+            predicted <- predict(
+                model,
+                newdata = test,
+                type = "prob")[,2]
+        } else if (type == "forest") {
+            model <- randomForest(
+                formula = Purchase ~ .,
+                data    = train,
+                ntree   = round(first), # rounding forces integer
+                mtry    = round(second) # rounding forces integer
+                )
 
-        cm <- table(predicted = predicted, test = test$Purchase)
+			predicted <- predict(
+                model,
+                newdata = test,
+                type="prob")[,2]
+        } else if (type == "regression") {
+			model <- glmnet(
+                as.matrix(train[,1:85]), # all but 'Purchase'
+                as.matrix(ifelse(train$Purchase == "Yes", 1, 0)),
+                family = "binomial",
+                lambda = 10^seq(1, -4, length = first),
+                alpha = second)
 
-        precision.sum <- precision.sum + cm[2,2] / sum(cm[2,])
+            predicted <- predict(
+                model,
+                as.matrix(test[,1:85]),
+                type="response")[,2]
+        }
+
+        targets <- ifelse(test$Purchase == "Yes", 1, 0)
+        fold.prediction <- prediction(predicted,targets)
+
+        auc <- performance(
+            fold.prediction,
+            measure = "auc")@y.values[[1]]
+        roc <- performance(
+            fold.prediction,
+            measure = "tpr",
+            x.measure = "fpr")
+
+        aucs[i] <- auc
     }
 
-    return (precision.sum / folds)
+    aucs.mean <- mean(aucs)
+    aucs.dev <- sd(aucs)
+
+    aucs.t.test <- t.test(aucs, mu=aucs.mean, conf.level= 0.95)
+
+    message(
+        "Mean: ", aucs.mean, "\n",
+        "Std. dev: ", aucs.dev, "\n",
+        "Confidence interval: ", aucs.t.test$conf.int[1], ", ", aucs.t.test$conf.int[2]
+    )
 }
 
-for (i in 1:30) {
-    message(paste(i, do.folds(10, i * 0.0001)))
+test.trees <- function() {
+    for (i in 1:30) {
+        message(i)
+        do.folds(10, "tree", i * 0.0001)
+    }
 }
