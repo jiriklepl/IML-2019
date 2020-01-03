@@ -53,95 +53,120 @@ print(mostype.vs.moshoofd)
 
 set.seed(123)
 
-do.folds <- function(folds, type, first, second) {
-    Caravan.sample <- sample(nrow(Caravan))
+Caravan.sample <- sample(nrow(Caravan))
 
-    Caravan.test <- Caravan[Caravan.sample,]
+Caravan.test <- Caravan[Caravan.sample,][1:1000,]
+Caravan.train <- Caravan[Caravan.sample,][1001:nrow(Caravan),]
 
-    answered.yes <- Caravan.test[Caravan.test[,86] == "Yes",]
-    answered.no <- Caravan.test[Caravan.test[,86] == "No",]
+do.folds <- function(attempts, folds, type, first, second) {
+    aucs <- c(1:(folds*attempts))
 
-    yes.count <- floor(nrow(answered.yes)/folds)
-    no.count <- floor(nrow(answered.no)/folds)
+    for (n in 1:attempts) {
+        Caravan.train.sample <- Caravan.train[sample(nrow(Caravan.train)),]
 
-    aucs <- c(1:10)
+        answered.yes <- Caravan.train.sample[Caravan.train.sample$Purchase == "Yes",]
+        answered.no <- Caravan.train.sample[Caravan.train.sample$Purchase == "No",]
 
-    for (i in 1:folds) {
-        yes.test <- answered.yes[((i-1)*yes.count+1):(i*yes.count),]
-        no.test <- answered.no[((i-1)*no.count+1):(i*no.count),]
+        yes.count <- floor(nrow(answered.yes)/folds)
+        no.count <- floor(nrow(answered.no)/folds)
 
-        yes.rest <- answered.yes[1:(folds*yes.count),][-c(((i-1)*yes.count+1):(i*yes.count)),]
-        no.rest <- answered.no[1:(folds*no.count),][-c(((i-1)*no.count+1):(i*no.count)),]
+        for (i in 1:folds) {
+            train <- rbind(
+                answered.yes[1:(folds*yes.count),][-c(((i-1)*yes.count+1):(i*yes.count)),],
+                answered.no[1:(folds*no.count),][-c(((i-1)*no.count+1):(i*no.count)),])
 
-        train <- rbind(yes.rest, no.rest)
-        test <- rbind(yes.test, no.test)
+            test <- rbind(
+                answered.yes[((i-1)*yes.count+1):(i*yes.count),],
+                answered.no[((i-1)*no.count+1):(i*no.count),])
 
-        if (type == "tree") {
-            model <- rpart(
-                formula = Purchase ~ .,
-                data    = train,
-                method  = "class",
-                cp      = first)
+            if (type == "tree") {
+                model <- rpart(
+                    formula = Purchase ~ .,
+                    data    = train,
+                    method  = "class",
+                    cp      = first)
 
-            predicted <- predict(
-                model,
-                newdata = test,
-                type = "prob")[,2]
-        } else if (type == "forest") {
-            model <- randomForest(
-                formula = Purchase ~ .,
-                data    = train,
-                ntree   = round(first), # rounding forces integer
-                mtry    = round(second) # rounding forces integer
-                )
+                predicted <- predict(
+                    model,
+                    newdata = test,
+                    type = "prob")[,2]
+            } else if (type == "forest") {
+                model <- randomForest(
+                    formula = Purchase ~ .,
+                    data    = train,
+                    ntree   = round(first), # rounding forces integer
+                    mtry    = round(second) # rounding forces integer
+                    )
 
-			predicted <- predict(
-                model,
-                newdata = test,
-                type="prob")[,2]
-        } else if (type == "regression") {
-			model <- glmnet(
-                as.matrix(train[,1:85]), # all but 'Purchase'
-                as.matrix(ifelse(train$Purchase == "Yes", 1, 0)),
-                family = "binomial",
-                lambda = 10^seq(1, -4, length = first),
-                alpha = second)
+                predicted <- predict(
+                    model,
+                    newdata = test,
+                    type="prob")[,2]
+            } else if (type == "regression") {
+                model <- glmnet(
+                    as.matrix(train[,1:85]), # all but 'Purchase'
+                    as.matrix(ifelse(train$Purchase == "Yes", 1, 0)),
+                    family = "binomial",
+                    lambda = 10^seq(1, -4, length = first),
+                    alpha = second)
 
-            predicted <- predict(
-                model,
-                as.matrix(test[,1:85]),
-                type="response")[,2]
+                predicted <- predict(
+                    model,
+                    as.matrix(test[,1:85]),
+                    type="response")[,2]
+            }
+
+            targets <- ifelse(test$Purchase == "Yes", 1, 0)
+            fold.prediction <- prediction(predicted, targets)
+
+            auc <- performance(
+                fold.prediction,
+                measure = "auc",
+                fpr.stop = 0.2)@y.values[[1]]
+            # roc <- performance(
+            #     fold.prediction,
+            #     measure = "tpr",
+            #     x.measure = "fpr")
+
+            aucs[(n - 1) * folds + i] <- auc
         }
-
-        targets <- ifelse(test$Purchase == "Yes", 1, 0)
-        fold.prediction <- prediction(predicted,targets)
-
-        auc <- performance(
-            fold.prediction,
-            measure = "auc")@y.values[[1]]
-        roc <- performance(
-            fold.prediction,
-            measure = "tpr",
-            x.measure = "fpr")
-
-        aucs[i] <- auc
     }
 
     aucs.mean <- mean(aucs)
     aucs.dev <- sd(aucs)
 
-    aucs.t.test <- t.test(aucs, mu=aucs.mean, conf.level= 0.95)
+    if (all(abs(aucs - aucs.mean) < 0.0001)) {
+		aucs.t.test <- data.frame("conf.int" = c(aucs.mean, aucs.mean))
+    } else {
+        aucs.t.test <- t.test(aucs, mu = aucs.mean, conf.level = 0.95)
+    }
 
-    message(
-        "Mean: ", aucs.mean, "\n",
-        "Std. dev: ", aucs.dev, "\n",
-        "Confidence interval: ", aucs.t.test$conf.int[1], ", ", aucs.t.test$conf.int[2]
-    )
+    # message(
+    #     "Mean: ", aucs.mean, "\n",
+    #     "Std. dev: ", aucs.dev, "\n",
+    #     "Confidence interval: ", aucs.t.test$conf.int[1], ", ", aucs.t.test$conf.int[2])
+
+    return(c(aucs.mean, aucs.dev, aucs.t.test$conf.int[1], aucs.t.test$conf.int[2]))
 }
+
+pdf("graphs.pdf")
 
 test.trees <- function() {
-    for (i in 1:30) {
-        message(i)
-        do.folds(10, "tree", i * 0.0001)
-    }
+    cps <- 10^seq(-2.155,-4, length=15)
+    aucs <- sapply(cps, function(i) do.folds(10, 10, "tree", i)) # doing the experiment 10 times for each cp
+    plotCI(
+        x = cps,
+        y = aucs[1,],
+        ylab = "AUC_0.2",
+        xlab = "cp",
+        uiw = aucs[4,] - aucs[1,],
+        liw = aucs[1,] - aucs[3,],
+        err = "y",
+        pch = 20,
+        slty = 3,
+        scol = "black",
+        add = TRUE,
+        log = "x")
 }
+
+dev.off()
