@@ -106,7 +106,7 @@ do.folds <- function(attempts, folds, type, first, second) {
                     as.matrix(train[,1:85]), # all but 'Purchase'
                     as.matrix(ifelse(train$Purchase == "Yes", 1, 0)),
                     family = "binomial",
-                    lambda = 10^seq(1, -4, length = first),
+                    lambda = first,
                     alpha = second)
 
                 predicted <- predict(
@@ -172,7 +172,58 @@ test.tree <- function() {
         scol = "black",
         add = FALSE)
 
+    dev.off()
+} # last measured 'sweet' cp was 0.0020790127
 
+test.forest <- function() {
+    pdf("forest.pdf")
+
+    for (mtry in 5^seq(1, log(85/3, 5), length = 5)) {
+        ntree <- 10^seq(1, 3, length = 10)
+
+        aucs <- sapply(ntree, function(n) do.folds(1, 10, "forest", n, mtry))
+
+        plotCI(
+            x = ntree,
+            y = aucs[1,],
+            ylab = "AUC_0.2",
+            xlab = "ntree",
+            main = paste("mtry =", mtry),
+            uiw = aucs[4,] - aucs[1,],
+            liw = aucs[1,] - aucs[3,],
+            err = "y",
+            pch = 20,
+            slty = 3,
+            scol = "black",
+            add = FALSE)
+    }
+
+    dev.off()
+}
+
+
+test.forest <- function() {
+    pdf("forest.pdf")
+
+    for (alpha in seq(0, 1, length = 10)) {
+        lambda <- 10^seq(-3, -1, length = 15)
+
+        aucs <- sapply(lambda, function(l) do.folds(1, 10, "forest", l, alpha))
+
+        plotCI(
+            x = ntree,
+            y = aucs[1,],
+            ylab = "AUC_0.2",
+            xlab = "lambda",
+            main = paste("alpha =", mtry),
+            uiw = aucs[4,] - aucs[1,],
+            liw = aucs[1,] - aucs[3,],
+            err = "y",
+            pch = 20,
+            slty = 3,
+            scol = "black",
+            add = FALSE)
+    }
 
     dev.off()
 }
