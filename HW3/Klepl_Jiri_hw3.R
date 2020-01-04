@@ -149,11 +149,16 @@ do.folds <- function(attempts, folds, type, first, second) {
     return(c(aucs.mean, aucs.dev, aucs.t.test$conf.int[1], aucs.t.test$conf.int[2]))
 }
 
-pdf("graphs.pdf")
 
-test.trees <- function() {
+
+test.tree <- function() {
+    pdf("tree.pdf")
+
     cps <- 10^seq(-2.155,-4, length=15)
-    aucs <- sapply(cps, function(i) do.folds(10, 10, "tree", i)) # doing the experiment 10 times for each cp
+    aucs <- sapply(cps, function(i) do.folds(10, 10, "tree", i))
+    # doing the experiment 10 times for each cp
+    # (this gives us more consistent results)
+
     plotCI(
         x = cps,
         y = aucs[1,],
@@ -165,8 +170,9 @@ test.trees <- function() {
         pch = 20,
         slty = 3,
         scol = "black",
-        add = TRUE,
-        log = "x")
-}
+        add = FALSE)
 
-dev.off()
+
+
+    dev.off()
+}
