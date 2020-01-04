@@ -254,3 +254,209 @@ test.regression <- function() {
 # lambda = 0.014597743
 # alpha = 0.777...
 # (according to the last experiment)
+
+# Task 2a,b,c
+
+# test.tree()
+# test.forest()
+# test.regression()
+
+# Task 2d
+
+# decision tree parameters
+sweet.cp <- 0.0020790127
+
+# random forest parameters
+sweet.ntree <- 600
+sweet.mtry <- 18
+
+# logistic regression parameters
+sweet.lambda <- 0.014597743
+sweet.alpha <- 7/9
+
+models.evaluate <- function() {
+    pdf("evaluation.pdf")
+
+    message("Training decision tree")
+    model.tree <- rpart(
+        formula = Purchase ~ .,
+        data    = Caravan.train,
+        method  = "class",
+        cp      = sweet.cp)
+
+    predicted.tree <- predict(
+        model.tree,
+        newdata = Caravan.test,
+        type = "prob")[,2]
+
+    message("Training random forest")
+    model.forest <- randomForest(
+        formula = Purchase ~ .,
+        data    = Caravan.train,
+        ntree   = round(sweet.ntree), # rounding forces integer
+        mtry    = round(sweet.mtry)) # rounding forces integer
+
+    predicted.forest <- predict(
+        model.forest,
+        newdata = Caravan.test,
+        type="prob")[,2]
+
+    message("Training logistic regression")
+    model.regression <- glmnet(
+        as.matrix(Caravan.train[,1:85]), # all but 'Purchase'
+        as.matrix(ifelse(Caravan.train$Purchase == "Yes", 1, 0)),
+        family = "binomial",
+        lambda = sweet.lambda,
+        alpha = sweet.alpha)
+
+    predicted.regression <- predict(
+        model.regression,
+        as.matrix(Caravan.test[,1:85]),
+        type="response")
+
+    targets <- ifelse(Caravan.test$Purchase == "Yes", 1, 0)
+
+    result <- pred.evaluate(predicted.tree, targets, 0.2, TRUE)
+    plot(
+        result[[2]],
+        main = paste(
+            "Decision tree\ncp = ",
+            sweet.cp,
+            ", AUC_0.2 = ",
+            result[[1]],
+            sep = ""))
+
+    result <- pred.evaluate(predicted.forest, targets, 0.2, TRUE)
+    plot(
+        result[[2]],
+        main = paste(
+            "Random forest\nntree = ",
+            sweet.ntree,
+            ", mtry = ",
+            sweet.mtry,
+            ", AUC_0.2 = ",
+            result[[1]],
+            sep = ""))
+
+    result <- pred.evaluate(predicted.regression, targets, 0.2, TRUE)
+    plot(
+        result[[2]],
+        main = paste(
+            "Logistic regression\nlambda = ",
+            sweet.lambda,
+            ", alpha = ",
+            sweet.alpha,
+            ", AUC_0.2 = ",
+            result[[1]],
+            sep = ""))
+
+    dev.off()
+}
+# this evaluation suggests choosing the logistic regression model
+# as this gives slightly worse than the decision tree but gives us
+# almost unique probabilities for each customer
+
+# Task 2d,e
+find.threshold <- function() {
+    model.regression <- glmnet(
+        as.matrix(Caravan.train[,1:85]), # all but 'Purchase'
+        as.matrix(ifelse(Caravan.train$Purchase == "Yes", 1, 0)),
+        family = "binomial",
+        lambda = sweet.lambda,
+        alpha = sweet.alpha)
+
+    predicted.regression <- predict(
+        model.regression,
+        as.matrix(Caravan.test[,1:85]),
+        type="response")
+
+    names(predicted.regression) <- rownames(Caravan.test)
+
+    regression.hundred <- sort(predicted.regression, TRUE)[1:100]
+
+
+    threshold <- regression.hundred[100]
+
+    message("Optimal threshold seems to be ", threshold)
+
+    return(threshold)
+}
+
+# Task 3
+features.evaluate <- function() {
+    message("Training decision tree")
+    model.tree <- rpart(
+        formula = Purchase ~ .,
+        data    = Caravan.train,
+        method  = "class",
+        cp      = sweet.cp)
+
+    message("Training random forest")
+    model.forest <- randomForest(
+        formula = Purchase ~ .,
+        data    = Caravan.train,
+        ntree   = round(sweet.ntree), # rounding forces integer
+        mtry    = round(sweet.mtry)) # rounding forces integer
+
+    forest.importance <- importance(model.forest)[,1]
+
+    message("Training lasso")
+    model.lasso <- glmnet(
+        as.matrix(Caravan.train[,1:85]), # all but 'Purchase'
+        as.matrix(ifelse(Caravan.train$Purchase == "Yes", 1, 0)),
+        family = "binomial",
+        lambda = sweet.lambda,
+        alpha = 0)
+
+	lasso.features <- coef(model.lasso)[2:86,1]
+
+    tree.used <- model.tree$variable.importance[names(forest.importance)]
+    names(tree.used) <- names(forest.importance)
+    tree.used[is.na(tree.used)] <- 0
+
+    comparison <- data.frame(
+        "decision.tree" = tree.used,
+        "random.forest" = forest.importance,
+        "lasso" = lasso.features)
+
+    message("correlation of feature importance values according to the models")
+    print(cor(comparison))
+    # we can see significant correlation between
+    # the decision tree model and the random forest model
+    # but not so much between the lasso model and either of these
+
+    # graphically:
+    pdf("comparison.pdf")
+    plot(comparison)
+    dev.off()
+}
+
+# Task 4
+final.evaluation <- function() {
+    threshold <- find.threshold()
+
+    model.regression <- glmnet(
+        as.matrix(Caravan[,1:85]), # all but 'Purchase'
+        as.matrix(ifelse(Caravan$Purchase == "Yes", 1, 0)),
+        family = "binomial",
+        lambda = sweet.lambda,
+        alpha = sweet.alpha)
+
+    final.test <- read.csv("caravan.test.1000.csv", header = FALSE, sep='\t')
+
+    predicted.regression <- predict(
+        model.regression,
+        as.matrix(final.test[,1:85]),
+        type="response")
+
+    names(predicted.regression) <- rownames(final.test)
+
+    regression.hundred <- sort(predicted.regression, TRUE)[1:100]
+
+    predicted.regression[names(regression.hundred)] <- 1
+    predicted.regression[-as.numeric(names(regression.hundred))] <- 0
+
+    write(predicted.regression, "T.prediction", ncolumns=1)
+
+    return(as.numeric(names(regression.hundred)))
+}
