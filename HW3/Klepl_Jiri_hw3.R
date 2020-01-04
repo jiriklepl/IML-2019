@@ -108,11 +108,10 @@ do.folds <- function(attempts, folds, type, first, second) {
                     family = "binomial",
                     lambda = first,
                     alpha = second)
-
                 predicted <- predict(
                     model,
                     as.matrix(test[,1:85]),
-                    type="response")[,2]
+                    type="response")
             }
 
             targets <- ifelse(test$Purchase == "Yes", 1, 0)
@@ -173,7 +172,8 @@ test.tree <- function() {
         add = FALSE)
 
     dev.off()
-} # last measured 'sweet' cp was 0.0020790127
+}
+# last measured 'sweet' cp was 0.0020790127
 
 test.forest <- function() {
     pdf("forest.pdf")
@@ -200,22 +200,33 @@ test.forest <- function() {
 
     dev.off()
 }
+# this method seems to be unfit for this problem
 
-
-test.forest <- function() {
-    pdf("forest.pdf")
+test.regression <- function() {
+    pdf("regression.pdf")
 
     for (alpha in seq(0, 1, length = 10)) {
-        lambda <- 10^seq(-3, -1, length = 15)
+        if (alpha >= 0.5) {
+            lambda <- 10^seq(-2.3, -1, length = 15)
+        } else if(alpha >= 0.1) {
+            lambda <- 10^seq(-1.5, -1, length = 15)
+        } else {
+            lambda <- 10^seq(-0.9, -0.4, length = 10)
+        }
 
-        aucs <- sapply(lambda, function(l) do.folds(1, 10, "forest", l, alpha))
+        if (alpha >= 0.4) {
+            aucs <- sapply(lambda, function(l) do.folds(5, 10, "regression", l, alpha))
+            # computationally we can afford more attempts
+        } else {
+            aucs <- sapply(lambda, function(l) do.folds(1, 10, "regression", l, alpha))
+        }
 
         plotCI(
-            x = ntree,
+            x = lambda,
             y = aucs[1,],
             ylab = "AUC_0.2",
             xlab = "lambda",
-            main = paste("alpha =", mtry),
+            main = paste("alpha =", alpha),
             uiw = aucs[4,] - aucs[1,],
             liw = aucs[1,] - aucs[3,],
             err = "y",
@@ -227,3 +238,7 @@ test.forest <- function() {
 
     dev.off()
 }
+# The 'sweet' (lambda, alpha) pair seems to be:
+# lambda = 0.0184785
+# alpha = 0.78
+# (according to the last experiment)
