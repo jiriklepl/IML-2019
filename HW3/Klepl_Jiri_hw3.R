@@ -5,49 +5,55 @@ library(randomForest)
 library(ROCR)
 library(glmnet)
 library(plotrix)
-# str(Caravan)
+library(grid)
+library(gridExtra)
 
 # Task 1
 
-message("Distribution:")
+first.task <- function() {
+    message("Distribution:")
 
-print(table(Caravan$Purchase) / nrow(Caravan))
+    print(table(Caravan$Purchase) / nrow(Caravan))
 
-set.seed(123)
-Caravan.sample <- Caravan[sample(nrow(Caravan))[1:100],]$Purchase
+    set.seed(123)
+    Caravan.sample <- Caravan[sample(nrow(Caravan))[1:100],]$Purchase
 
-# 1a
+    # 1a
 
-moshoofd.numbers <- table(Caravan[,c(5)])
-moshoofd.purchased <- round(table(Caravan[,c(5,86)])[,2] / table(Caravan[c(5)]),4) * 100
+    moshoofd.numbers <- table(Caravan[,c(5)])
+    moshoofd.purchased <- round(table(Caravan[,c(5,86)])[,2] / table(Caravan[c(5)]),4) * 100
 
-moshoofd <- data.frame(
-    "Number" = as.numeric(moshoofd.numbers),
-    "Rate" = as.numeric(moshoofd.purchased))
+    moshoofd <- data.frame(
+        "Number" = as.numeric(moshoofd.numbers),
+        "Rate" = as.numeric(moshoofd.purchased))
 
-message("MOSHOOFD:")
-print(moshoofd)
+    pdf("table-moshoofd.pdf")
+    grid.table(t(moshoofd))
+    dev.off()
 
-# ---
+    # ---
 
-mostype.numbers <- table(Caravan[,c(1)])
-mostype.purchased <- round(table(Caravan[,c(1,86)])[,2] / table(Caravan[,c(1)]),4) * 100
+    mostype.numbers <- table(Caravan[,c(1)])
+    mostype.purchased <- round(table(Caravan[,c(1,86)])[,2] / table(Caravan[,c(1)]),4) * 100
 
-mostype <- data.frame(
-    "Number" = as.numeric(mostype.numbers),
-    "Rate" = as.numeric(mostype.purchased))
+    mostype <- data.frame(
+        "Number" = as.numeric(mostype.numbers),
+        "Rate" = as.numeric(mostype.purchased))
 
-row.names(mostype) <- row.names(mostype.numbers)
+    row.names(mostype) <- row.names(mostype.numbers)
 
-message("MOSTYPE:")
-print(mostype)
+    pdf("table-mostype.pdf", width = 20)
+    grid.table(t(mostype))
+    dev.off()
 
-# 1b
+    # 1b
 
-mostype.vs.moshoofd <- table(Caravan[,c(1,5)])
+    mostype.vs.moshoofd <- table(Caravan[,c(1,5)])
 
-message("MOSTYPE vs MOSHOOFD:")
-print(mostype.vs.moshoofd)
+    pdf("table-mostype-vs-moshoofd.pdf", width = 17)
+    grid.table(t(mostype.vs.moshoofd))
+    dev.off()
+}
 
 # Task 2
 
@@ -418,6 +424,8 @@ features.evaluate <- function() {
         "decision.tree" = tree.used,
         "random.forest" = forest.importance,
         "lasso" = lasso.features)
+
+    print(comparison)
 
     message("correlation of feature importance values according to the models")
     print(cor(comparison))
