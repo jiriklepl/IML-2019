@@ -58,6 +58,26 @@ Caravan.sample <- sample(nrow(Caravan))
 Caravan.test <- Caravan[Caravan.sample,][1:1000,]
 Caravan.train <- Caravan[Caravan.sample,][1001:nrow(Caravan),]
 
+pred.evaluate <- function(predicted, targets, fpr.stop, do.roc) {
+    pred <- prediction(predicted, targets)
+
+    auc <- performance(
+        pred,
+        measure = "auc",
+        fpr.stop = fpr.stop)@y.values[[1]]
+
+    if (do.roc) {
+        roc <- performance(
+            pred,
+            measure = "tpr",
+            x.measure = "fpr")
+
+        return(c(auc,roc))
+    } else {
+        return(c(auc,NULL))
+    }
+}
+
 do.folds <- function(attempts, folds, type, first, second) {
     aucs <- c(1:(folds*attempts))
 
@@ -114,20 +134,11 @@ do.folds <- function(attempts, folds, type, first, second) {
                     type="response")
             }
 
-            targets <- ifelse(test$Purchase == "Yes", 1, 0)
-            fold.prediction <- prediction(predicted, targets)
-
-            auc <- performance(
-                fold.prediction,
-                measure = "auc",
-                fpr.stop = 0.2)@y.values[[1]]
-
-            # roc <- performance(
-            #     fold.prediction,
-            #     measure = "tpr",
-            #     x.measure = "fpr")
-
-            aucs[(n - 1) * folds + i] <- auc
+            aucs[(n - 1) * folds + i] <- pred.evaluate(
+                predicted,
+                ifelse(test$Purchase == "Yes", 1, 0),
+                0.2,
+                FALSE)[1]
         }
     }
 
