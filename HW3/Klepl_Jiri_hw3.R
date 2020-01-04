@@ -95,8 +95,7 @@ do.folds <- function(attempts, folds, type, first, second) {
                     formula = Purchase ~ .,
                     data    = train,
                     ntree   = round(first), # rounding forces integer
-                    mtry    = round(second) # rounding forces integer
-                    )
+                    mtry    = round(second)) # rounding forces integer
 
                 predicted <- predict(
                     model,
@@ -123,6 +122,7 @@ do.folds <- function(attempts, folds, type, first, second) {
                 fold.prediction,
                 measure = "auc",
                 fpr.stop = 0.2)@y.values[[1]]
+
             # roc <- performance(
             #     fold.prediction,
             #     measure = "tpr",
