@@ -211,7 +211,8 @@ test.forest <- function() {
 
     dev.off()
 }
-# this method seems to be unfit for this problem
+# this method seems to be unfit for this problem (or at least difficult to tune)
+# pretty good pair of parameters seems to be mtry = 18, ntree = 600
 
 test.regression <- function() {
     pdf("regression.pdf")
@@ -250,6 +251,6 @@ test.regression <- function() {
     dev.off()
 }
 # The 'sweet' (lambda, alpha) pair seems to be:
-# lambda = 0.0184785
-# alpha = 0.78
+# lambda = 0.014597743
+# alpha = 0.777...
 # (according to the last experiment)
