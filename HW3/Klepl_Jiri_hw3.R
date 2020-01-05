@@ -170,16 +170,16 @@ do.folds <- function(attempts, folds, type, first, second) {
 test.tree <- function() {
     pdf("tree.pdf")
 
-    cps <- 10^seq(-2.155,-4, length=15)
+    cps <- 10^seq(-2,-4, length=25)
     aucs <- sapply(cps, function(i) do.folds(10, 10, "tree", i))
     # doing the experiment 10 times for each cp
     # (this gives us more consistent results)
 
     plotCI(
-        x = cps,
+        x = log(cps, 10),
         y = aucs[1,],
         ylab = "AUC_0.2",
-        xlab = "cp",
+        xlab = "log_10 cp",
         uiw = aucs[4,] - aucs[1,],
         liw = aucs[1,] - aucs[3,],
         err = "y",
@@ -190,7 +190,7 @@ test.tree <- function() {
 
     dev.off()
 }
-# last measured 'sweet' cp was 0.0020790127
+# last measured 'sweet' cp was 0.001211527
 
 test.forest <- function() {
     pdf("forest.pdf")
@@ -233,17 +233,17 @@ test.regression <- function() {
         }
 
         if (alpha >= 0.4) {
-            aucs <- sapply(lambda, function(l) do.folds(5, 10, "regression", l, alpha))
+            aucs <- sapply(lambda, function(l) do.folds(10, 10, "regression", l, alpha))
             # computationally we can afford more attempts
         } else {
             aucs <- sapply(lambda, function(l) do.folds(1, 10, "regression", l, alpha))
         }
 
         plotCI(
-            x = lambda,
+            x = log(lambda, 10),
             y = aucs[1,],
             ylab = "AUC_0.2",
-            xlab = "lambda",
+            xlab = "log_10 lambda",
             main = paste("alpha =", alpha),
             uiw = aucs[4,] - aucs[1,],
             liw = aucs[1,] - aucs[3,],
@@ -270,7 +270,7 @@ test.regression <- function() {
 # Task 2d
 
 # decision tree parameters
-sweet.cp <- 0.0020790127
+sweet.cp <- 0.001211527
 
 # random forest parameters
 sweet.ntree <- 600
@@ -412,7 +412,7 @@ features.evaluate <- function() {
         as.matrix(ifelse(Caravan.train$Purchase == "Yes", 1, 0)),
         family = "binomial",
         lambda = sweet.lambda,
-        alpha = 0)
+        alpha = 1)
 
 	lasso.features <- coef(model.lasso)[2:86,1]
 
